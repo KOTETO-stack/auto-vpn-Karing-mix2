@@ -21,3 +21,4 @@ jobs:
           git add output/
           git diff --quiet && git diff --staged --quiet || git commit -m "Update VPN configs + WARP+ $(date -u +%Y-%m-%d_%H:%M)"
           git push
+
