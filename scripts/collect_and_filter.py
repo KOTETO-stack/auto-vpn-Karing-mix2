@@ -1,25 +1,19 @@
 #!/usr/bin/env python3
-"""
-VPN Auto-Collector for Karing iOS
-Собирает, пингует, проверяет сервера + авто-генерация WARP+ ключей
-"""
-
 import asyncio
 import aiohttp
 import base64
 import json
-import re
 import time
-import os
-import hashlib
+import uuid
 import random
 import string
+import hashlib
+import os
 from urllib.parse import urlparse, unquote
 from datetime import datetime, timedelta
 
 MAX_SERVERS = 150
 EXCLUDE_COUNTRIES = ['UA', 'UKR', 'Ukraine', 'Украина']
-TARGET_PROTOCOLS = ['vless', 'trojan', 'hysteria2', 'vmess', 'hy2']
 
 COUNTRY_FLAGS = {
     'US': '🇺🇸', 'GB': '🇬🇧', 'DE': '🇩🇪', 'FR': '🇫🇷', 'NL': '🇳🇱',
@@ -34,8 +28,7 @@ COUNTRY_FLAGS = {
     'LT': '🇱🇹', 'LV': '🇱🇻', 'EE': '🇪🇪', 'SK': '🇸🇰', 'SI': '🇸🇮',
     'HR': '🇭🇷', 'BA': '🇧🇦', 'RS': '🇷🇸', 'ME': '🇲🇪', 'MK': '🇲🇰',
     'AL': '🇦🇱', 'GR': '🇬🇷', 'CY': '🇨🇾', 'MT': '🇲🇹', 'IS': '🇮🇸',
-    'LU': '🇱🇺', 'LI': '🇱🇮', 'MC': '🇲🇨', 'AD': '🇦🇩', 'SM': '🇸🇲',
-    'VA': '🇻🇦', 'UA': '🇺🇦'
+    'LU': '🇱🇺'
 }
 
 COUNTRY_NAMES_RU = {
@@ -66,31 +59,15 @@ SOURCES = {
     'proxifly': 'https://raw.githubusercontent.com/proxifly/free-proxy-list/main/proxies/all.txt',
 }
 
-# ==================== WARP+ ГЕНЕРАТОР ====================
-
 def generate_warp_config():
-    """
-    Генерирует конфигурацию WARP+ с автоматическим созданием ключей
-    Использует алгоритм Cloudflare WARP
-    """
-    # Генерируем приватный ключ WireGuard
-    private_key = generate_private_key()
-    public_key = derive_public_key(private_key)
-    
-    # Генерируем UUID аккаунта
+    private_key = base64.b64encode(os.urandom(32)).decode()
     account_id = str(uuid.uuid4())
-    
-    # Генерируем лицензионный ключ WARP+
-    license_key = generate_license_key()
-    
-    # Генерируем client ID
+    license_key = '-'.join([''.join(random.choices(string.ascii_uppercase + string.digits, k=4)) for _ in range(3)])
     client_id = ''.join(random.choices(string.ascii_lowercase + string.digits, k=32))
-    
-    # IPv6 адрес (генерируем из client_id)
     ipv6_suffix = hashlib.sha256(client_id.encode()).hexdigest()[:16]
-    ipv6 = f"2606:4700:110:{ipv6_suffix[:4]}:{ipv6_suffix[4:8]}:{ipv6_suffix[8:12]}:{ipv6_suffix[12:16]}:xxxx"
+    ipv6 = f"2606:4700:110:{ipv6_suffix[:4]}:{ipv6_suffix[4:8]}:{ipv6_suffix[8:12]}:{ipv6_suffix[12:16]}:1"
     
-    config = {
+    return {
         "id": account_id,
         "account": {
             "account_type": "free",
@@ -102,54 +79,15 @@ def generate_warp_config():
             "client_id": client_id,
             "peers": [{
                 "public_key": "bmXOC+F1FxEMF9dyiK2H5/1SUtzH0JuVo51h2wPfgyo=",
-                "endpoint": {
-                    "host": "engage.cloudflareclient.com:2408"
-                }
+                "endpoint": {"host": "engage.cloudflareclient.com:2408"}
             }],
             "interface": {
-                "addresses": {
-                    "v4": "172.16.0.2",
-                    "v6": ipv6
-                }
+                "addresses": {"v4": "172.16.0.2", "v6": ipv6}
             }
         },
         "private_key": private_key,
-        "public_key": public_key
+        "public_key": "bmXOC+F1FxEMF9dyiK2H5/1SUtzH0JuVo51h2wPfgyo="
     }
-    
-    return config
-
-def generate_private_key():
-    """Генерирует WireGuard приватный ключ"""
-    import secrets
-    key = secrets.token_bytes(32)
-    # Добавляем noise для корректности Curve25519
-    key = list(key)
-    key[0] &= 248
-    key[31] &= 127
-    key[31] |= 64
-    return base64.b64encode(bytes(key)).decode()
-
-def derive_public_key(private_key_b64):
-    """Выводит публичный ключ из приватного"""
-    try:
-        import nacl.bindings
-        private_key = base64.b64decode(private_key_b64)
-        public_key = nacl.bindings.crypto_scalarmult_base(private_key)
-        return base64.b64encode(public_key).decode()
-    except:
-        # Fallback: возвращаем публичный ключ Cloudflare
-        return "bmXOC+F1FxEMF9dyiK2H5/1SUtzH0JuVo51h2wPfgyo="
-
-def generate_license_key():
-    """Генерирует ключ WARP+ в формате XXXX-XXXX-XXXX"""
-    parts = []
-    for _ in range(3):
-        part = ''.join(random.choices(string.ascii_uppercase + string.digits, k=4))
-        parts.append(part)
-    return '-'.join(parts)
-
-# ==================== ПАРСЕРЫ ====================
 
 def decode_base64_links(data):
     try:
@@ -164,20 +102,13 @@ def parse_vmess(link):
         json_str = base64.b64decode(b64 + '=' * (-len(b64) % 4)).decode('utf-8')
         data = json.loads(json_str)
         return {
-            'protocol': 'vmess',
-            'ps': data.get('ps', 'Unknown'),
-            'add': data.get('add', ''),
-            'port': str(data.get('port', '')),
-            'id': data.get('id', ''),
-            'aid': str(data.get('aid', '0')),
-            'scy': data.get('scy', 'auto'),
-            'net': data.get('net', 'tcp'),
-            'type': data.get('type', 'none'),
-            'host': data.get('host', ''),
-            'path': data.get('path', ''),
-            'tls': data.get('tls', ''),
-            'sni': data.get('sni', ''),
-            'raw': link
+            'protocol': 'vmess', 'ps': data.get('ps', 'Unknown'),
+            'add': data.get('add', ''), 'port': str(data.get('port', '')),
+            'id': data.get('id', ''), 'aid': str(data.get('aid', '0')),
+            'scy': data.get('scy', 'auto'), 'net': data.get('net', 'tcp'),
+            'type': data.get('type', 'none'), 'host': data.get('host', ''),
+            'path': data.get('path', ''), 'tls': data.get('tls', ''),
+            'sni': data.get('sni', ''), 'raw': link
         }
     except:
         return None
@@ -185,11 +116,10 @@ def parse_vmess(link):
 def parse_vless(link):
     try:
         url = link.replace('vless://', '')
+        remark = 'VLESS'
         if '#' in url:
             url, remark = url.split('#', 1)
             remark = unquote(remark)
-        else:
-            remark = 'VLESS'
         parsed = urlparse('vless://' + url)
         query = {}
         if '?' in url:
@@ -199,16 +129,11 @@ def parse_vless(link):
                     k, v = param.split('=', 1)
                     query[k] = unquote(v)
         return {
-            'protocol': 'vless',
-            'ps': remark,
-            'add': parsed.hostname,
-            'port': str(parsed.port),
-            'id': parsed.username,
+            'protocol': 'vless', 'ps': remark, 'add': parsed.hostname,
+            'port': str(parsed.port), 'id': parsed.username,
             'security': query.get('security', 'none'),
-            'type': query.get('type', 'tcp'),
-            'host': query.get('host', ''),
-            'path': query.get('path', ''),
-            'sni': query.get('sni', ''),
+            'type': query.get('type', 'tcp'), 'host': query.get('host', ''),
+            'path': query.get('path', ''), 'sni': query.get('sni', ''),
             'raw': link
         }
     except:
@@ -217,20 +142,15 @@ def parse_vless(link):
 def parse_trojan(link):
     try:
         url = link.replace('trojan://', '')
+        remark = 'Trojan'
         if '#' in url:
             url, remark = url.split('#', 1)
             remark = unquote(remark)
-        else:
-            remark = 'Trojan'
         parsed = urlparse('trojan://' + url)
         return {
-            'protocol': 'trojan',
-            'ps': remark,
-            'add': parsed.hostname,
-            'port': str(parsed.port),
-            'password': parsed.username,
-            'sni': parsed.hostname,
-            'raw': link
+            'protocol': 'trojan', 'ps': remark, 'add': parsed.hostname,
+            'port': str(parsed.port), 'password': parsed.username,
+            'sni': parsed.hostname, 'raw': link
         }
     except:
         return None
@@ -238,94 +158,56 @@ def parse_trojan(link):
 def parse_hysteria2(link):
     try:
         url = link.replace('hysteria2://', '').replace('hy2://', '')
+        remark = 'Hysteria2'
         if '#' in url:
             url, remark = url.split('#', 1)
             remark = unquote(remark)
-        else:
-            remark = 'Hysteria2'
         parsed = urlparse('hysteria2://' + url)
         return {
-            'protocol': 'hysteria2',
-            'ps': remark,
-            'add': parsed.hostname,
-            'port': str(parsed.port),
-            'password': parsed.username,
-            'raw': link
+            'protocol': 'hysteria2', 'ps': remark, 'add': parsed.hostname,
+            'port': str(parsed.port), 'password': parsed.username, 'raw': link
         }
     except:
         return None
 
-# ==================== ОПРЕДЕЛЕНИЕ СТРАН ====================
-
 def detect_country(server):
     host = server.get('add', '').lower()
     ps = server.get('ps', '').lower()
-    
     country_map = {
         'us': 'US', 'usa': 'US', 'united states': 'US', 'america': 'US',
         'gb': 'GB', 'uk': 'GB', 'britain': 'GB', 'england': 'GB',
-        'de': 'DE', 'germany': 'DE', 'deutschland': 'DE',
-        'fr': 'FR', 'france': 'FR',
-        'nl': 'NL', 'netherlands': 'NL', 'holland': 'NL',
-        'sg': 'SG', 'singapore': 'SG',
-        'jp': 'JP', 'japan': 'JP',
-        'kr': 'KR', 'korea': 'KR', 'south korea': 'KR',
-        'ca': 'CA', 'canada': 'CA',
-        'au': 'AU', 'australia': 'AU',
-        'fi': 'FI', 'finland': 'FI',
-        'se': 'SE', 'sweden': 'SE', 'sverige': 'SE',
-        'no': 'NO', 'norway': 'NO',
-        'ch': 'CH', 'switzerland': 'CH', 'schweiz': 'CH',
-        'at': 'AT', 'austria': 'AT', 'osterreich': 'AT',
-        'pl': 'PL', 'poland': 'PL', 'polska': 'PL',
-        'cz': 'CZ', 'czech': 'CZ', 'czechia': 'CZ',
-        'ro': 'RO', 'romania': 'RO',
-        'bg': 'BG', 'bulgaria': 'BG',
-        'hu': 'HU', 'hungary': 'HU', 'magyar': 'HU',
-        'it': 'IT', 'italy': 'IT', 'italia': 'IT',
-        'es': 'ES', 'spain': 'ES', 'espana': 'ES',
-        'pt': 'PT', 'portugal': 'PT',
-        'ie': 'IE', 'ireland': 'IE', 'eire': 'IE',
-        'dk': 'DK', 'denmark': 'DK',
-        'in': 'IN', 'india': 'IN', 'bharat': 'IN',
-        'tr': 'TR', 'turkey': 'TR', 'turkiye': 'TR',
-        'br': 'BR', 'brazil': 'BR', 'brasil': 'BR',
-        'mx': 'MX', 'mexico': 'MX',
-        'ar': 'AR', 'argentina': 'AR',
-        'za': 'ZA', 'south africa': 'ZA',
-        'ae': 'AE', 'uae': 'AE', 'emirates': 'AE', 'dubai': 'AE',
-        'il': 'IL', 'israel': 'IL',
-        'th': 'TH', 'thailand': 'TH',
-        'vn': 'VN', 'vietnam': 'VN', 'viet nam': 'VN',
-        'my': 'MY', 'malaysia': 'MY',
-        'id': 'ID', 'indonesia': 'ID',
-        'ph': 'PH', 'philippines': 'PH',
-        'ru': 'RU', 'russia': 'RU', 'rossiya': 'RU',
-        'kz': 'KZ', 'kazakhstan': 'KZ',
-        'by': 'BY', 'belarus': 'BY', 'belarusian': 'BY',
-        'am': 'AM', 'armenia': 'AM',
-        'ge': 'GE', 'georgia': 'GE',
-        'az': 'AZ', 'azerbaijan': 'AZ',
-        'md': 'MD', 'moldova': 'MD',
-        'lt': 'LT', 'lithuania': 'LT',
-        'lv': 'LV', 'latvia': 'LV',
-        'ee': 'EE', 'estonia': 'EE',
-        'sk': 'SK', 'slovakia': 'SK',
-        'si': 'SI', 'slovenia': 'SI',
-        'hr': 'HR', 'croatia': 'HR',
-        'ba': 'BA', 'bosnia': 'BA',
-        'rs': 'RS', 'serbia': 'RS',
-        'me': 'ME', 'montenegro': 'ME',
-        'mk': 'MK', 'macedonia': 'MK',
-        'al': 'AL', 'albania': 'AL',
-        'gr': 'GR', 'greece': 'GR',
-        'cy': 'CY', 'cyprus': 'CY',
-        'mt': 'MT', 'malta': 'MT',
-        'is': 'IS', 'iceland': 'IS',
-        'lu': 'LU', 'luxembourg': 'LU',
-        'ua': 'UA', 'ukraine': 'UA', 'ukrainian': 'UA', 'kyiv': 'UA', 'kiev': 'UA'
+        'de': 'DE', 'germany': 'DE', 'fr': 'FR', 'france': 'FR',
+        'nl': 'NL', 'netherlands': 'NL', 'sg': 'SG', 'singapore': 'SG',
+        'jp': 'JP', 'japan': 'JP', 'kr': 'KR', 'korea': 'KR',
+        'ca': 'CA', 'canada': 'CA', 'au': 'AU', 'australia': 'AU',
+        'fi': 'FI', 'finland': 'FI', 'se': 'SE', 'sweden': 'SE',
+        'no': 'NO', 'norway': 'NO', 'ch': 'CH', 'switzerland': 'CH',
+        'at': 'AT', 'austria': 'AT', 'pl': 'PL', 'poland': 'PL',
+        'cz': 'CZ', 'czech': 'CZ', 'ro': 'RO', 'romania': 'RO',
+        'bg': 'BG', 'bulgaria': 'BG', 'hu': 'HU', 'hungary': 'HU',
+        'it': 'IT', 'italy': 'IT', 'es': 'ES', 'spain': 'ES',
+        'pt': 'PT', 'portugal': 'PT', 'ie': 'IE', 'ireland': 'IE',
+        'dk': 'DK', 'denmark': 'DK', 'in': 'IN', 'india': 'IN',
+        'tr': 'TR', 'turkey': 'TR', 'br': 'BR', 'brazil': 'BR',
+        'mx': 'MX', 'mexico': 'MX', 'ar': 'AR', 'argentina': 'AR',
+        'za': 'ZA', 'south africa': 'ZA', 'ae': 'AE', 'uae': 'AE',
+        'dubai': 'AE', 'il': 'IL', 'israel': 'IL', 'th': 'TH', 'thailand': 'TH',
+        'vn': 'VN', 'vietnam': 'VN', 'my': 'MY', 'malaysia': 'MY',
+        'id': 'ID', 'indonesia': 'ID', 'ph': 'PH', 'philippines': 'PH',
+        'ru': 'RU', 'russia': 'RU', 'kz': 'KZ', 'kazakhstan': 'KZ',
+        'by': 'BY', 'belarus': 'BY', 'am': 'AM', 'armenia': 'AM',
+        'ge': 'GE', 'georgia': 'GE', 'az': 'AZ', 'azerbaijan': 'AZ',
+        'md': 'MD', 'moldova': 'MD', 'lt': 'LT', 'lithuania': 'LT',
+        'lv': 'LV', 'latvia': 'LV', 'ee': 'EE', 'estonia': 'EE',
+        'sk': 'SK', 'slovakia': 'SK', 'si': 'SI', 'slovenia': 'SI',
+        'hr': 'HR', 'croatia': 'HR', 'ba': 'BA', 'bosnia': 'BA',
+        'rs': 'RS', 'serbia': 'RS', 'me': 'ME', 'montenegro': 'ME',
+        'mk': 'MK', 'macedonia': 'MK', 'al': 'AL', 'albania': 'AL',
+        'gr': 'GR', 'greece': 'GR', 'cy': 'CY', 'cyprus': 'CY',
+        'mt': 'MT', 'malta': 'MT', 'is': 'IS', 'iceland': 'IS',
+        'lu': 'LU', 'luxembourg': 'LU', 'ua': 'UA', 'ukraine': 'UA',
+        'kyiv': 'UA', 'kiev': 'UA'
     }
-    
     for key, code in country_map.items():
         if key in host or key in ps:
             return code
@@ -334,7 +216,6 @@ def detect_country(server):
 def get_city(server):
     ps = server.get('ps', '').lower()
     host = server.get('add', '').lower()
-    
     city_patterns = {
         'new york': 'Нью-Йорк', 'ny': 'Нью-Йорк', 'nyc': 'Нью-Йорк',
         'los angeles': 'Лос-Анджелес', 'la': 'Лос-Анджелес',
@@ -375,7 +256,6 @@ def get_city(server):
         'tirana': 'Тирана', 'athens': 'Афины', 'nicosia': 'Никосия', 'valletta': 'Валлетта',
         'reykjavik': 'Рейкьявик', 'luxembourg': 'Люксембург'
     }
-    
     for key, city in city_patterns.items():
         if key in ps or key in host:
             return city
@@ -385,23 +265,18 @@ def format_server_name(server):
     country = detect_country(server)
     if country in EXCLUDE_COUNTRIES or country == 'UA':
         return None
-    
     flag = COUNTRY_FLAGS.get(country, '🌍')
     name = COUNTRY_NAMES_RU.get(country, country)
     city = get_city(server)
-    
     if city:
         return f"{flag} {name} {city}"
     return f"{flag} {name}"
-
-# ==================== СЕТЕВЫЕ ФУНКЦИИ ====================
 
 async def fetch_source(session, name, url):
     try:
         async with session.get(url, timeout=aiohttp.ClientTimeout(total=30)) as resp:
             if resp.status == 200:
-                text = await resp.text()
-                return name, text
+                return name, await resp.text()
     except Exception as e:
         print(f"Error fetching {name}: {e}")
     return name, ''
@@ -442,13 +317,10 @@ async def ping_server(session, server):
     except:
         return float('inf')
 
-# ==================== ГЕНЕРАТОРЫ КОНФИГОВ ====================
-
 def generate_clash_config(servers, warp_config):
     proxies = []
     proxy_names = []
     
-    # WARP+ конфигурация с автоматическим ключом
     warp_name = "🛡️ WARP+ Защита"
     proxy_names.append(warp_name)
     proxies.append({
@@ -464,7 +336,6 @@ def generate_clash_config(servers, warp_config):
         'udp': True
     })
     
-    # Amnezia WG конфигурация
     amnezia_name = "🔒 Amnezia WG"
     proxy_names.append(amnezia_name)
     proxies.append({
@@ -484,19 +355,15 @@ def generate_clash_config(servers, warp_config):
         name = format_server_name(server)
         if not name:
             continue
-        
         proto = server['protocol']
         base_name = f"{name} #{i+1}"
         proxy_names.append(base_name)
         
         if proto == 'vmess':
             proxy = {
-                'name': base_name,
-                'type': 'vmess',
-                'server': server['add'],
-                'port': int(server['port']),
-                'uuid': server['id'],
-                'alterId': int(server.get('aid', 0)),
+                'name': base_name, 'type': 'vmess',
+                'server': server['add'], 'port': int(server['port']),
+                'uuid': server['id'], 'alterId': int(server.get('aid', 0)),
                 'cipher': server.get('scy', 'auto'),
                 'tls': server.get('tls') == 'tls',
                 'servername': server.get('sni', ''),
@@ -505,10 +372,8 @@ def generate_clash_config(servers, warp_config):
             }
         elif proto == 'vless':
             proxy = {
-                'name': base_name,
-                'type': 'vless',
-                'server': server['add'],
-                'port': int(server['port']),
+                'name': base_name, 'type': 'vless',
+                'server': server['add'], 'port': int(server['port']),
                 'uuid': server['id'],
                 'tls': server.get('security') in ['tls', 'xtls'],
                 'servername': server.get('sni', server['add']),
@@ -518,27 +383,22 @@ def generate_clash_config(servers, warp_config):
             }
         elif proto == 'trojan':
             proxy = {
-                'name': base_name,
-                'type': 'trojan',
-                'server': server['add'],
-                'port': int(server['port']),
+                'name': base_name, 'type': 'trojan',
+                'server': server['add'], 'port': int(server['port']),
                 'password': server['password'],
                 'sni': server.get('sni', server['add']),
                 'skip-cert-verify': False
             }
         elif proto == 'hysteria2':
             proxy = {
-                'name': base_name,
-                'type': 'hysteria2',
-                'server': server['add'],
-                'port': int(server['port']),
+                'name': base_name, 'type': 'hysteria2',
+                'server': server['add'], 'port': int(server['port']),
                 'password': server['password'],
                 'sni': server['add'],
                 'skip-cert-verify': False
             }
         else:
             continue
-        
         proxies.append(proxy)
     
     proxy_groups = [
@@ -621,7 +481,7 @@ def generate_clash_config(servers, warp_config):
         'MATCH,🌐 Все сервера'
     ]
     
-    config = {
+    return {
         'port': 7890,
         'socks-port': 7891,
         'mixed-port': 7892,
@@ -641,8 +501,6 @@ def generate_clash_config(servers, warp_config):
         'proxy-groups': proxy_groups,
         'rules': rules
     }
-    
-    return config
 
 def generate_base64_links(servers):
     links = []
@@ -659,10 +517,7 @@ def generate_base64_links(servers):
                 links.append(f"{raw}#{name.replace(' ', '%20')}")
     return '\n'.join(links)
 
-# ==================== ГЛАВНАЯ ФУНКЦИЯ ====================
-
 async def main():
-    # Генерируем WARP+ конфиг
     print("Generating WARP+ config...")
     warp_config = generate_warp_config()
     
@@ -707,7 +562,6 @@ async def main():
         with open('output/v2ray-base64.txt', 'w', encoding='utf-8') as f:
             f.write(base64.b64encode(base64_links.encode()).decode())
         
-        # sing-box конфиг с WARP+
         singbox_outbounds = [
             {"type": "selector", "tag": "Auto", "outbounds": ["WARP+", "Amnezia"]},
             {
@@ -767,7 +621,7 @@ async def main():
                 "rules": [
                     {"domain_suffix": ["youtube.com", "googlevideo.com"], "outbound": "Auto"},
                     {"domain_suffix": ["telegram.org", "t.me"], "outbound": "Auto"},
-                    {"domain_suffix": ["tiktok.com", "tiktokv.com"], "outbound": "Auto"},
+                    "domain_suffix": ["tiktok.com", "tiktokv.com"], "outbound": "Auto"},
                     {"domain_suffix": ["wechat.com", "whatsapp.com", "bip.com"], "outbound": "Auto"}
                 ]
             }
@@ -776,7 +630,6 @@ async def main():
         with open('output/sing-box.json', 'w', encoding='utf-8') as f:
             json.dump(singbox_config, f, indent=2, ensure_ascii=False)
         
-        # Сохраняем WARP+ конфиг отдельно
         with open('output/warp-plus.json', 'w', encoding='utf-8') as f:
             json.dump(warp_config, f, indent=2, ensure_ascii=False)
         
@@ -785,5 +638,4 @@ async def main():
         print(f"WARP+ TTL: {warp_config['account']['ttl']}")
 
 if __name__ == '__main__':
-    import uuid
     asyncio.run(main())
