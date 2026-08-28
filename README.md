@@ -1,10 +1,8 @@
-# auto-vpn-Karing-mix2
-# 🛡️ Auto VPN Russia
+# 🛡️ VPN Auto Config для Karing iOS (Россия)
 
-Автоматически обновляемый VPN-конфиг для Karing (iOS).
+## 📱 Как использовать в Karing
 
-## 🚀 Быстрый старт (iPhone)
-
-1. Установи [Karing](https://apps.apple.com/app/karing/id6453493621) из App Store
-2. Открой Karing → **Config** → **Subscribe** → **+**
+### Способ 1: Подписка Clash (рекомендуется)
+1. Открой **Karing** на iPhone
+2. Нажми **+** → **URL**
 3. Вставь ссылку:
