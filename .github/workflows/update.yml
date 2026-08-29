@@ -1,0 +1,38 @@
+name: VPN Subscription Auto-Update
+
+on:
+  schedule:
+    - cron: '0 * * * *'
+  workflow_dispatch:
+
+jobs:
+  update:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    
+    steps:
+      - uses: actions/checkout@v4
+      
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      
+      - name: Install deps
+        run: pip install aiohttp aiofiles cryptography
+      
+      - name: Run updater
+        env:
+          WARP_PRIVATE_KEY: ${{ secrets.WARP_PRIVATE_KEY }}
+          WARP_RESERVED: ${{ secrets.WARP_RESERVED }}
+          SUB_PASSWORD: ${{ secrets.SUB_PASSWORD }}
+        run: python src/main.py
+      
+      - name: Commit results
+        run: |
+          git config user.name "bot"
+          git config user.email "bot@github.com"
+          git add output/
+          git commit -m "update: $(date +%H:%M)" || exit 0
+          git push
