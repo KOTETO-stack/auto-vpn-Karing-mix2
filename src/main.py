@@ -6,6 +6,7 @@ import base64
 import os
 import re
 import time
+import hashlib  # <-- ДОБАВЛЕН
 import socket
 from dataclasses import dataclass
 from typing import List, Optional
