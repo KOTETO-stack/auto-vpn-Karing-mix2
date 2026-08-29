@@ -1,0 +1,110 @@
+[
+  {
+    "url": "https://raw.githubusercontent.com/freefq/free/master/v2",
+    "name": "FreeFQ",
+    "tags": ["vless", "trojan"],
+    "added": "2026-08-29",
+    "enabled": true,
+    "fail_count": 0,
+    "last_hash": ""
+  },
+  {
+    "url": "https://raw.githubusercontent.com/Pawdroid/Free-servers/main/sub",
+    "name": "Pawdroid",
+    "tags": ["hysteria2"],
+    "added": "2026-08-29",
+    "enabled": true,
+    "fail_count": 0,
+    "last_hash": ""
+  },
+  {
+    "url": "https://raw.githubusercontent.com/aiboboxx/v2rayfree/main/v2",
+    "name": "Aiboboxx",
+    "tags": ["vless"],
+    "added": "2026-08-29",
+    "enabled": true,
+    "fail_count": 0,
+    "last_hash": ""
+  },
+  {
+    "url": "https://raw.githubusercontent.com/ripaojiedian/freenode/main/sub",
+    "name": "Ripaojiedian",
+    "tags": ["trojan"],
+    "added": "2026-08-29",
+    "enabled": true,
+    "fail_count": 0,
+    "last_hash": ""
+  },
+  {
+    "url": "https://raw.githubusercontent.com/mahdibland/ShadowsocksAggregator/master/sub/sub_merge.txt",
+    "name": "Mahdibland",
+    "tags": ["mixed"],
+    "added": "2026-08-29",
+    "enabled": true,
+    "fail_count": 0,
+    "last_hash": ""
+  },
+  {
+    "url": "https://raw.githubusercontent.com/learnhard-cn/free_proxy_ss/main/free",
+    "name": "Learnhard",
+    "tags": ["shadowsocks"],
+    "added": "2026-08-29",
+    "enabled": true,
+    "fail_count": 0,
+    "last_hash": ""
+  },
+  {
+    "url": "https://raw.githubusercontent.com/wrfree/free/main/v2",
+    "name": "Wrfree",
+    "tags": ["vless"],
+    "added": "2026-08-29",
+    "enabled": true,
+    "fail_count": 0,
+    "last_hash": ""
+  },
+  {
+    "url": "https://raw.githubusercontent.com/anaer/Sub/main/sub.txt",
+    "name": "Anaer",
+    "tags": ["mixed"],
+    "added": "2026-08-29",
+    "enabled": true,
+    "fail_count": 0,
+    "last_hash": ""
+  },
+  {
+    "url": "https://raw.githubusercontent.com/mfuu/v2ray/master/v2ray",
+    "name": "Mfuu",
+    "tags": ["vless"],
+    "added": "2026-08-29",
+    "enabled": true,
+    "fail_count": 0,
+    "last_hash": ""
+  },
+  {
+    "url": "https://raw.githubusercontent.com/tbbatbb/Proxy/master/dist/v2ray.config.txt",
+    "name": "Tbbatbb",
+    "tags": ["vless"],
+    "added": "2026-08-29",
+    "enabled": true,
+    "fail_count": 0,
+    "last_hash": ""
+  },
+  {
+    "url": "https://raw.githubusercontent.com/adiwzx/freenode/main/adispeed.txt",
+    "name": "Adiwzx",
+    "tags": ["mixed"],
+    "added": "2026-08-29",
+    "enabled": true,
+    "fail_count": 0,
+    "last_hash": ""
+  },
+  {
+    "url": "https://raw.githubusercontent.com/barry-far/V2ray-Configs/main/All_Configs_Sub.txt",
+    "name": "Barry-far",
+    "tags": ["mixed"],
+    "added": "2026-08-29",
+    "enabled": true,
+    "fail_count": 0,
+    "last_hash": ""
+  }
+]
