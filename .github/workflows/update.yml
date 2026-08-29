@@ -13,6 +13,8 @@ jobs:
     
     steps:
       - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
       
       - name: Setup Python
         uses: actions/setup-python@v5
@@ -34,5 +36,8 @@ jobs:
           git config user.name "github-actions[bot]"
           git config user.email "github-actions[bot]@users.noreply.github.com"
           git add output/
+          git stash
+          git pull --rebase origin main
+          git stash pop
+          git add output/
           git diff --staged --quiet || (git commit -m "update: $(date +%Y-%m-%d-%H:%M)" && git push)
-
