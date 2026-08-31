@@ -1,36 +1,19 @@
-# VPN Subscription for Karing
+# Auto VPN Subscription for Karing
 
-Auto-updating VPN subscription with Warp+ protection and DNS leak prevention.
+Auto-updating VPN subscription with 150+ servers, security checks, ping tests, and encryption.
 
 ## Features
 
 - Auto-update every hour via GitHub Actions
-- 150 working servers from 100+ sources
-- Warp+ data protection
-- AmneziaFree backup
-- DNS leak protection
-- AdGuard ad blocking
-- Russian apps bypass VPN
+- Fetches from 100+ public sources
+- Security check + DNS leak test
+- Ping test + speed optimization
+- Protocols: Trojan, Hysteria2 (HY2)
+- Warp+ protection + AmneziaFree backup
+- Russian apps go direct (no VPN)
+- AdGuard DNS ad blocking
 - Encrypted subscription support
 
-## Setup
+## Usage in Karing
 
-### 1. GitHub Secrets
-
-Go to Settings -> Secrets and variables -> Actions -> New repository secret:
-
-| Secret | Description |
-|--------|-------------|
-| `WARP_PRIVATE_KEY` | Your Warp+ private key |
-| `WARP_RESERVED` | Warp+ reserved (e.g. `0,0,0`) |
-| `SUB_PASSWORD` | Subscription encryption password |
-
-### 2. Get Warp+ Key
-
-1. Install 1.1.1.1 app
-2. Get license key from settings
-3. Use WG key generator to get private key
-
-### 3. Karing Import
-
-Add subscription URL:
+1. Add subscription URL:
