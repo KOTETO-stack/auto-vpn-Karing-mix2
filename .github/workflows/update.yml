@@ -17,11 +17,7 @@ jobs:
           python-version: '3.11'
           
       - name: Install dependencies
-        run: |
-          pip install requests pycryptodome
-          
-      - name: Update sources
-        run: python source_manager.py
+        run: pip install requests pycryptodome
           
       - name: Build subscription
         run: python main_builder.py
@@ -31,5 +27,5 @@ jobs:
           git config user.name "github-actions[bot]"
           git config user.email "github-actions[bot]@users.noreply.github.com"
           git add fetch_sources.json subscription.txt subscription_encrypted.txt
-          git diff --quiet && git diff --staged --quiet || git commit -m "auto: update subscription $(date +%Y-%m-%d-%H:%M)"
+          git diff --quiet && git diff --staged --quiet || git commit -m "auto: update $(date +%Y-%m-%d-%H:%M)"
           git push
